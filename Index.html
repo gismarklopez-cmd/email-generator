@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Generador de Correos — Loh Medical</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f4f1; --surface: #ffffff; --border: #e2e0da; --border-strong: #c8c5bc;
+    --text-primary: #1a1a18; --text-secondary: #6b6a65; --text-muted: #9e9d98;
+    --accent: #1d6fa4; --success: #1a7a4a; --success-bg: #e6f4ed; --radius: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08); --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
+  .header { width: 100%; max-width: 640px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 12px; }
+  .logo { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .header h1 { font-size: 16px; font-weight: 600; }
+  .header p { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 640px; box-shadow: var(--shadow); }
+  .section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; font-family: inherit; color: var(--text-primary); background: white; outline: none; transition: border-color 0.15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(29,111,164,0.1); }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+  .divider { height: 1px; background: var(--border); margin: 1.25rem 0; }
+  .toggle-group { display: flex; flex-direction: column; gap: 10px; }
+  .toggle-row { display: flex; align-items: center; gap: 10px; }
+  .toggle-row span { font-size: 14px; }
+  .switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: var(--border-strong); border-radius: 20px; cursor: pointer; transition: background 0.2s; }
+  .slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  input:checked + .slider { background: var(--accent); }
+  input:checked + .slider::before { transform: translateX(16px); }
+  .dist-box { margin-top: 8px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); display: none; }
+  .dist-box.show { display: block; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid transparent; font-family: inherit; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: white; width: 100%; justify-content: center; margin-top: 1.25rem; padding: 12px; }
+  .btn-primary:hover { background: #185d8a; }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-secondary { background: white; color: var(--text-secondary); border-color: var(--border); font-size: 13px; }
+  .btn-secondary:hover { border-color: var(--border-strong); color: var(--text-primary); }
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { font-size: 12px; color: #c0392b; margin-top: 5px; display: none; }
+  .output-panel { width: 100%; max-width: 640px; margin-top: 1rem; display: none; }
+  .output-panel.show { display: block; }
+  .output-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-md); overflow: hidden; }
+  .output-header { display: flex; align-items: center; padding: 12px 1.25rem; border-bottom: 1px solid var(--border); background: var(--bg); gap: 8px; }
+  .output-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; background: var(--success-bg); color: var(--success); }
+  .output-meta { font-size: 12px; color: var(--text-muted); }
+  .output-body { padding: 1.25rem; font-size: 14px; line-height: 1.8; color: var(--text-primary); white-space: pre-wrap; }
+  .output-footer { display: flex; gap: 8px; padding: 12px 1.25rem; border-top: 1px solid var(--border); background: var(--bg); align-items: center; }
+  .copy-feedback { font-size: 12px; color: var(--success); display: none; margin-left: auto; }
+  .copy-feedback.show { display: block; }
+  .skeleton { padding: 1.25rem; }
+  .skeleton-line { height: 13px; background: linear-gradient(90deg, #f0efe9 25%, #e5e4de 50%, #f0efe9 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; margin-bottom: 10px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">LM</div>
+  <div>
+    <h1>Generador de correos</h1>
+    <p>Loh Medical — Sales outreach</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-label">Sales Rep</div>
+  <div class="grid">
+    <div class="field full">
+      <label for="rep">Tu nombre completo *</label>
+      <input type="text" id="rep" placeholder="Ej: Gismark López, María García..." />
+      <span class="err" id="err-rep">Por favor ingresa tu nombre.</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section-label">Datos del lead</div>
+  <div class="grid">
+    <div class="field">
+      <label for="lang">Idioma</label>
+      <select id="lang">
+        <option value="Español">Español</option>
+        <option value="English">English</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="pais">País</label>
+      <input type="text" id="pais" list="pais-list" placeholder="Ej: Ecuador, Guatemala..." autocomplete="off" />
+      <datalist id="pais-list">
+        <option value="Ecuador"><option value="Guatemala"><option value="Puerto Rico">
+        <option value="Trinidad"><option value="Panamá"><option value="Costa Rica">
+        <option value="Colombia"><option value="República Dominicana"><option value="Honduras">
+        <option value="El Salvador"><option value="Nicaragua"><option value="Perú"><option value="México">
+      </datalist>
+    </div>
+    <div class="field full">
+      <label for="nombre">Nombre del lead</label>
+      <input type="text" id="nombre" placeholder="Dejar vacío si no se sabe" />
+    </div>
+    <div class="field full">
+      <label for="producto">Producto de interés *</label>
+      <input type="text" id="producto" placeholder="Ej: RGK Octane FX, Rifton Pacer, QUICKIE Nitrum..." />
+      <span class="err" id="err-producto">Por favor ingresa el producto de interés.</span>
+    </div>
+    <div class="field full">
+      <label for="notas">Notas adicionales</label>
+      <textarea id="notas" placeholder="Ej: niña de 6 años con PCI, no incluir precio, es respuesta a correo recibido..."></textarea>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section-label">Opciones de compra</div>
+  <div class="toggle-group">
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" id="tog-directa" checked><span class="slider"></span></label>
+      <span>Compra directa con Loh Medical</span>
+    </div>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" id="tog-dist"><span class="slider"></span></label>
+      <span>Compra mediante distribuidor exclusivo</span>
+    </div>
+    <div class="dist-box" id="dist-box">
+      <div class="field">
+        <label for="dist-nombre">Nombre del distribuidor</label>
+        <input type="text" id="dist-nombre" placeholder="Ej: Centro Ortopédico Freire, Camera Mundi, Jormar..." />
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="gen-btn" onclick="generarCorreo()">
+    <span class="spinner" id="spinner"></span>
+    <span id="btn-label">Generar correo</span>
+  </button>
+</div>
+
+<div class="output-panel" id="output-panel">
+  <div class="output-card">
+    <div class="output-header">
+      <span class="output-badge">✓ Correo generado</span>
+      <span class="output-meta" id="output-meta"></span>
+    </div>
+    <div id="output-body-wrap">
+      <div class="skeleton" id="skeleton">
+        <div class="skeleton-line" style="width:55%"></div>
+        <div class="skeleton-line" style="width:88%"></div>
+        <div class="skeleton-line" style="width:75%"></div>
+        <div class="skeleton-line" style="width:92%"></div>
+        <div class="skeleton-line" style="width:65%"></div>
+      </div>
+      <div class="output-body" id="output-body" style="display:none;"></div>
+    </div>
+    <div class="output-footer">
+      <button class="btn btn-secondary" onclick="nuevoCorreo()">← Nuevo correo</button>
+      <button class="btn btn-secondary" onclick="copiarCorreo()">Copiar</button>
+      <span class="copy-feedback" id="copy-feedback">✓ Copiado</span>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('tog-dist').addEventListener('change', function() {
+  document.getElementById('dist-box').classList.toggle('show', this.checked);
+});
+
+function stripMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .trim();
+}
+
+function generarCorreo() {
+  const rep = document.getElementById('rep').value.trim();
+  const nombre = document.getElementById('nombre').value.trim();
+  const pais = document.getElementById('pais').value.trim();
+  const producto = document.getElementById('producto').value.trim();
+  const lang = document.getElementById('lang').value;
+  const notas = document.getElementById('notas').value.trim();
+  const directa = document.getElementById('tog-directa').checked;
+  const dist = document.getElementById('tog-dist').checked;
+  const distNombre = document.getElementById('dist-nombre').value.trim();
+
+  let valid = true;
+  if (!rep) { document.getElementById('err-rep').style.display = 'block'; valid = false; } else { document.getElementById('err-rep').style.display = 'none'; }
+  if (!producto) { document.getElementById('err-producto').style.display = 'block'; valid = false; } else { document.getElementById('err-producto').style.display = 'none'; }
+  if (!valid) return;
+
+  const btn = document.getElementById('gen-btn');
+  const spinner = document.getElementById('spinner');
+  const btnLabel = document.getElementById('btn-label');
+  btn.disabled = true; spinner.style.display = 'block'; btnLabel.textContent = 'Generando...';
+
+  document.getElementById('output-panel').classList.add('show');
+  document.getElementById('skeleton').style.display = 'block';
+  document.getElementById('output-body').style.display = 'none';
+  document.getElementById('output-meta').textContent = [nombre, pais, producto].filter(Boolean).join(' · ');
+  document.getElementById('output-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const params = {
+    rep: rep,
+    nombre: nombre,
+    pais: pais,
+    producto: producto,
+    lang: lang,
+    notas: notas,
+    directa: directa,
+    dist: dist,
+    distNombre: distNombre
+  };
+
+  google.script.run
+    .withSuccessHandler(function(text) {
+      const cleanText = stripMarkdown(text);
+      document.getElementById('skeleton').style.display = 'none';
+      document.getElementById('output-body').style.display = 'block';
+      document.getElementById('output-body').textContent = cleanText;
+      document.getElementById('copy-feedback').classList.remove('show');
+      btn.disabled = false; spinner.style.display = 'none'; btnLabel.textContent = 'Generar correo';
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('skeleton').style.display = 'none';
+      document.getElementById('output-body').style.display = 'block';
+      document.getElementById('output-body').textContent = 'Error al generar: ' + err.message;
+      btn.disabled = false; spinner.style.display = 'none'; btnLabel.textContent = 'Generar correo';
+    })
+    .generateEmail(params);
+}
+
+function nuevoCorreo() {
+  document.getElementById('output-panel').classList.remove('show');
+  document.getElementById('nombre').value = '';
+  document.getElementById('producto').value = '';
+  document.getElementById('notas').value = '';
+  document.getElementById('copy-feedback').classList.remove('show');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function copiarCorreo() {
+  const text = document.getElementById('output-body').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    const fb = document.getElementById('copy-feedback');
+    fb.classList.add('show');
+    setTimeout(function() { fb.classList.remove('show'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>
