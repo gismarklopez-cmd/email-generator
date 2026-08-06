@@ -60,6 +60,8 @@
   .skeleton { padding: 1.25rem; }
   .skeleton-line { height: 13px; background: linear-gradient(90deg, #f0efe9 25%, #e5e4de 50%, #f0efe9 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; margin-bottom: 10px; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .rep-banner { background: var(--accent-bg, #e8f2f9); border-bottom: 1px solid var(--border); padding: 10px 1.25rem; font-size: 12px; color: var(--accent); display: none; }
+  .rep-banner.show { display: block; }
 </style>
 </head>
 <body>
@@ -73,6 +75,17 @@
 </div>
 
 <div class="card" id="form-card">
+  <div class="section-label">Sales Rep</div>
+  <div class="grid">
+    <div class="field full">
+      <label for="rep">Tu nombre completo *</label>
+      <input type="text" id="rep" placeholder="Ej: Gismark López, María García..." />
+      <span class="err" id="err-rep">Por favor ingresa tu nombre.</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
   <div class="section-label">Datos del lead</div>
   <div class="grid">
     <div class="field">
@@ -138,10 +151,11 @@
   <div class="output-card">
     <div class="output-header">
       <div style="display:flex;align-items:center;gap:8px;">
-        <span class="output-badge" id="output-badge">✓ Correo generado</span>
+        <span class="output-badge">✓ Correo generado</span>
         <span class="output-meta" id="output-meta"></span>
       </div>
     </div>
+    <div class="rep-banner" id="rep-banner"></div>
     <div id="output-body-wrap">
       <div class="skeleton" id="skeleton">
         <div class="skeleton-line" style="width:55%"></div>
@@ -165,7 +179,19 @@ document.getElementById('tog-dist').addEventListener('change', function() {
   document.getElementById('dist-box').classList.toggle('show', this.checked);
 });
 
+function stripMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '* ')
+    .trim();
+}
+
 async function generarCorreo() {
+  const rep = document.getElementById('rep').value.trim();
   const nombre = document.getElementById('nombre').value.trim();
   const pais = document.getElementById('pais').value.trim();
   const producto = document.getElementById('producto').value.trim();
@@ -174,10 +200,11 @@ async function generarCorreo() {
   const directa = document.getElementById('tog-directa').checked;
   const dist = document.getElementById('tog-dist').checked;
   const distNombre = document.getElementById('dist-nombre').value.trim();
-  const errEl = document.getElementById('err-producto');
 
-  if (!producto) { errEl.style.display = 'block'; document.getElementById('producto').focus(); return; }
-  errEl.style.display = 'none';
+  let valid = true;
+  if (!rep) { document.getElementById('err-rep').style.display = 'block'; valid = false; } else { document.getElementById('err-rep').style.display = 'none'; }
+  if (!producto) { document.getElementById('err-producto').style.display = 'block'; valid = false; } else { document.getElementById('err-producto').style.display = 'none'; }
+  if (!valid) return;
 
   const btn = document.getElementById('gen-btn');
   const spinner = document.getElementById('spinner');
@@ -188,35 +215,45 @@ async function generarCorreo() {
   document.getElementById('skeleton').style.display = 'block';
   document.getElementById('output-body').style.display = 'none';
   document.getElementById('output-meta').textContent = [nombre, pais, producto].filter(Boolean).join(' · ');
+
+  const repBanner = document.getElementById('rep-banner');
+  repBanner.textContent = 'Sales Rep: ' + rep;
+  repBanner.classList.add('show');
+
   document.getElementById('output-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   let opcionesCompra = '';
   if (directa && dist) {
     const dl = distNombre || '[NOMBRE DISTRIBUIDOR]';
-    opcionesCompra = `Incluir dos opciones de compra:\n1. Compra directa con Loh Medical: cliente gestiona importación via empresa de flete tipo PO Box en Miami.\n2. Compra mediante distribuidor exclusivo en ${pais || 'el país'}, **${dl}**: ellos manejan cotización, compra y entrega en el país.`;
+    opcionesCompra = `Incluir dos opciones de compra:\n1. Compra directa con Loh Medical: cliente gestiona importación via empresa de flete tipo PO Box en Miami.\n2. Compra mediante distribuidor exclusivo en ${pais || 'el país'}, ${dl}: ellos manejan cotización, compra y entrega en el país.`;
   } else if (directa) {
     opcionesCompra = `Solo compra directa con Loh Medical: cliente gestiona importación via empresa de flete tipo PO Box en Miami.`;
   } else if (dist) {
     const dl = distNombre || '[NOMBRE DISTRIBUIDOR]';
-    opcionesCompra = `Solo compra mediante distribuidor exclusivo en ${pais || 'el país'}, **${dl}**, quien maneja cotización, compra y entrega en el país.`;
+    opcionesCompra = `Solo compra mediante distribuidor exclusivo en ${pais || 'el país'}, ${dl}, quien maneja cotización, compra y entrega en el país.`;
   } else {
     opcionesCompra = 'No incluir sección de opciones de compra.';
   }
 
-  const prompt = `Eres Gismark López, representante de ventas de Loh Medical para ${pais || 'la región'}. Redacta un correo profesional de ventas en ${lang} para un lead llamado "${nombre || 'desconocido'}" interesado en: ${producto}.
+  const saludo = nombre
+    ? (lang === 'English' ? `Dear ${nombre},` : `Estimado/a ${nombre},`)
+    : (lang === 'English' ? 'Good day,' : 'Buen día,');
 
-Instrucciones:
-- Saludo: "${nombre ? `Estimado/a ${nombre},` : 'Buen día,'}"
-- Preséntate: "Mi nombre es Gismark López, representante de ventas de Loh Medical para ${pais || 'la región'}."
+  const prompt = `Eres ${rep}, representante de ventas de Loh Medical para ${pais || 'la región'}. Redacta un correo profesional de ventas en ${lang} para un lead llamado "${nombre || 'desconocido'}" interesado en: ${producto}.
+
+Instrucciones de estilo:
+- Saludo: "${saludo}"
+- Preséntate: "Mi nombre es ${rep}, representante de ventas de Loh Medical para ${pais || 'la región'}."
 - Incluye descripción del producto con características clave
 - Si aplica, solicita medidas del usuario (peso, talla, diagnóstico, condición, etc.)
-- Cierra con "Quedo atento a tu respuesta."
+- Cierra con "Quedo atento a tu respuesta." (o equivalente en inglés si el idioma es English)
 - Tono: cálido, profesional, consultivo
+- IMPORTANTE: No uses formato markdown. No uses asteriscos para negritas, no uses #, no uses guiones como viñetas. Solo texto plano con saltos de línea naturales.
 
 Opciones de compra: ${opcionesCompra}
 ${notas ? `Notas adicionales: ${notas}` : ''}
 
-IMPORTANTE: Escribe ÚNICAMENTE el cuerpo del correo. Sin asunto, sin comentarios, sin explicaciones adicionales.`;
+Escribe ÚNICAMENTE el cuerpo del correo. Sin asunto, sin comentarios, sin explicaciones adicionales.`;
 
   try {
     const res = await fetch('/.netlify/functions/generate', {
@@ -228,9 +265,10 @@ IMPORTANTE: Escribe ÚNICAMENTE el cuerpo del correo. Sin asunto, sin comentario
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
+    const cleanText = stripMarkdown(data.text);
     document.getElementById('skeleton').style.display = 'none';
     document.getElementById('output-body').style.display = 'block';
-    document.getElementById('output-body').textContent = data.text;
+    document.getElementById('output-body').textContent = cleanText;
     document.getElementById('copy-feedback').classList.remove('show');
   } catch (err) {
     document.getElementById('skeleton').style.display = 'none';
@@ -247,7 +285,7 @@ function nuevoCorreo() {
   document.getElementById('producto').value = '';
   document.getElementById('notas').value = '';
   document.getElementById('copy-feedback').classList.remove('show');
-  document.getElementById('nombre').focus();
+  document.getElementById('rep').focus();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
